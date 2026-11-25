@@ -52,13 +52,14 @@ $script:tmpDir = Join-Path $env:TEMP ('cx-publish-' + [guid]::NewGuid().ToString
 New-Item -ItemType Directory -Force $script:tmpDir | Out-Null
 
 function Invoke-Api {
-  param([string]$Method, [string]$Path, $Body, [int]$Retry = 4)
+  param([string]$Method, [string]$Path, $Body, [int]$Retry = 6)
 
   $url = if ($Path -like 'http*') { $Path } else { "$api$Path" }
   $respFile = Join-Path $script:tmpDir ((New-Guid).ToString('N') + '.json')
   $bodyFile = $null
   $curlArgs = @(
     '--silent', '--show-error', '--location',
+    '--http1.1',
     '--max-time', '180',
     '--connect-timeout', '25',
     '--retry', '2', '--retry-all-errors', '--retry-delay', '1',
@@ -73,6 +74,7 @@ function Invoke-Api {
   if ($null -ne $Body) {
     $bodyFile = Join-Path $script:tmpDir ((New-Guid).ToString('N') + '.req.json')
     $json = ConvertTo-Json $Body -Depth 12 -Compress
+    if ($Path -like '*/git/trees') { [IO.File]::WriteAllText((Join-Path $root 'build\tree-debug.json'), $json, (New-Object Text.UTF8Encoding($false))) }
     [IO.File]::WriteAllText($bodyFile, $json, (New-Object Text.UTF8Encoding($false)))
     $curlArgs += @('--header', 'Content-Type: application/json', '--data-binary', "@$bodyFile")
   }
@@ -87,12 +89,15 @@ function Invoke-Api {
 
     $ok = ($code -match '^\d{3}$') -and ([int]$code -ge 200) -and ([int]$code -lt 300)
     if ($ok) {
-      if ($text.Trim()) { return ($text | ConvertFrom-Json) } else { return $null }
+      if (-not $text.Trim()) { throw "GitHub API $Method $Path 返回空响应体" }
+      return ($text | ConvertFrom-Json)
     }
 
-    $transient = ($code -eq '000') -or ($code -match '^5') -or ($code -eq '429')
+    # 这台机器的网络对 api.github.com 很不稳（偶发 TLS 握手失败、连不上、以及 404 误响应），
+    # 所以 404 也纳入重试，只有 4xx 里的语义错误（400/401/403/409/422）才是真的失败。
+    $transient = ($code -eq '000') -or ($code -eq '404') -or ($code -match '^5') -or ($code -eq '429')
     if ($transient -and $attempt -lt $Retry) {
-      Start-Sleep -Milliseconds (400 * $attempt)
+      Start-Sleep -Milliseconds ([Math]::Min(4000, 500 * $attempt))
       continue
     }
 
@@ -100,7 +105,8 @@ function Invoke-Api {
     if ($code -eq '401') { $hint = '（token 无效或已过期）' }
     if ($code -eq '403') { $hint = '（权限不足：classic PAT 需要 public_repo / repo）' }
     if ($code -eq '000') { $hint = '（连不上 api.github.com，检查网络或代理）' }
-    throw "GitHub API $Method $Path 失败（HTTP $code）$hint`n$($text.Substring(0, [Math]::Min(400, $text.Length)))"
+    $blen = if ($bodyFile) { $json.Length } else { 0 }
+    throw "GitHub API $Method $Path 失败（HTTP $code，URL=$url，body=$blen 字节）$hint`n$($text.Substring(0, [Math]::Min(400, $text.Length)))"
   }
 }
 
@@ -166,6 +172,7 @@ try {
     $rel = $f.FullName.Substring($root.Length + 1) -replace '\\', '/'
     $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($f.FullName))
     $blob = Invoke-Api POST "/repos/$owner/$Repo/git/blobs" @{ content = $b64; encoding = 'base64' }
+    if (-not $blob -or -not $blob.sha) { throw "建立 blob 失败（无 sha）：$rel" }
     $tree.Add(@{ path = $rel; mode = '100644'; type = 'blob'; sha = $blob.sha })
     Write-Progress -Activity '上传' -Status "$i/$($files.Count)  $rel" -PercentComplete (100 * $i / $files.Count)
   }
