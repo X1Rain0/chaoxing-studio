@@ -1,0 +1,22 @@
+# 构建产物
+build/bin/
+*.exe
+*.dll
+*.syso
+
+# 运行期数据（绝不入库）
+data/
+webview-data/
+*.log
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 依赖（本项目前端无依赖，仅防御）
+node_modules/
+
+# 设计脚本的临时记录
+.hallmark/log.json

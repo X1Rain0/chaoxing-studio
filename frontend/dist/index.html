@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>学习通签到工坊</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <aside class="rail">
+    <div class="brand">
+      <span class="brand-seal" aria-hidden="true">签</span>
+      <span class="brand-name">签到工坊<em>学习通 · 本机</em></span>
+    </div>
+
+    <div class="rail-block">
+      <div class="rail-label"><span>账号</span><b id="acc-count">0</b></div>
+      <div class="accounts" id="accounts"></div>
+      <button class="btn-add" id="btn-add">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+        添加账号
+      </button>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button data-view="overview" class="on">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.6V12l3.1 1.9"/></svg>
+        总览
+      </button>
+      <button data-view="courses">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5.4C9.4 4.3 7.4 3.8 4.8 3.9v14.3c2.6-.1 4.6.4 6.2 1.5 1.6-1.1 3.6-1.6 6.2-1.5V3.9c-2.6-.1-4.6.4-6.2 1.5z"/><path d="M11 5.4v14.3"/></svg>
+        课程
+      </button>
+      <button data-view="records">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h9.5"/><path d="M17.6 16.6l1.5 1.5 2.4-2.6"/></svg>
+        签到记录
+      </button>
+      <button data-view="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6.5M15 7.5h5M4 16.5h5M13.5 16.5h6.5"/><circle cx="12.7" cy="7.5" r="2.3"/><circle cx="11.2" cy="16.5" r="2.3"/></svg>
+        设置
+      </button>
+    </nav>
+
+    <div class="rail-facts">
+      <div class="fact">
+        <span>自动签到</span>
+        <label class="switch"><input type="checkbox" id="side-auto" checked /><i></i></label>
+      </div>
+      <div class="fact"><span>轮询</span><b id="side-interval">每 60 秒</b></div>
+      <div class="fact"><span>上次扫描</span><b id="side-last">—</b></div>
+    </div>
+
+    <div class="rail-recent">
+      <div class="rail-label"><span>最近签到</span></div>
+      <div class="mini-list" id="side-mini-list"></div>
+    </div>
+
+    <div class="rail-foot">
+      <button class="link" id="btn-datadir">数据目录</button>
+      <button class="link" id="btn-theme">夜间</button>
+      <span class="ver" id="version">v1.0.0</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="titles">
+        <h1 id="view-title">总览</h1>
+        <p id="view-sub">添加账号后开始自动巡检</p>
+      </div>
+      <div class="top-actions">
+        <span class="state" id="session-pill"><i></i><span>未登录</span></span>
+        <span class="divider"></span>
+        <span class="iv" id="interval-pill">每 60 秒</span>
+        <button class="btn primary" id="btn-toggle">开始监听</button>
+      </div>
+    </header>
+
+    <div class="scroll">
+      <section class="view" id="view-overview">
+        <div class="ledger">
+          <div class="cell">
+            <span>上次扫描</span>
+            <b id="stat-last">—</b>
+            <em id="stat-last-sub">等待启动</em>
+          </div>
+          <div class="cell">
+            <span>扫描轮次</span>
+            <b id="stat-checks">0</b>
+            <em id="stat-checks-sub">保持会话心跳</em>
+          </div>
+          <div class="cell">
+            <span>签到成功</span>
+            <b id="stat-signed">0</b>
+            <em id="stat-signed-sub">本次监听</em>
+          </div>
+          <div class="cell">
+            <span>连续失败</span>
+            <b id="stat-fail">0</b>
+            <em id="stat-fail-sub">自动降频重试</em>
+          </div>
+        </div>
+
+        <div class="cols">
+          <section class="col">
+            <div class="col-head">
+              <h2>实时签到</h2>
+              <div class="col-actions">
+                <span class="hint" id="act-hint">暂无进行中的签到</span>
+                <button class="btn ghost sm" id="btn-check-now">立即检测</button>
+              </div>
+            </div>
+            <div class="act-list" id="act-list"></div>
+            <div class="foot-meta" id="act-foot">
+              <span id="chip-session">未登录</span>
+              <span id="chip-auto">命中自动签到</span>
+              <span id="chip-interval">每 60 秒巡检</span>
+            </div>
+          </section>
+
+          <section class="col col-log">
+            <div class="col-head">
+              <h2>运行日志</h2>
+              <button class="link" id="btn-clearlog">清空</button>
+            </div>
+            <div class="log-list" id="log-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view hidden" id="view-courses">
+        <div class="block">
+          <div class="col-head">
+            <h2>课程列表</h2>
+            <div class="col-actions">
+              <span class="hint" id="course-hint">—</span>
+              <button class="btn ghost sm" id="btn-refresh-courses">刷新</button>
+            </div>
+          </div>
+          <div class="course-grid" id="course-grid"></div>
+        </div>
+      </section>
+
+      <section class="view hidden" id="view-records">
+        <div class="block">
+          <div class="col-head">
+            <h2>签到记录</h2>
+            <button class="btn ghost sm" id="btn-clear-records">清空记录</button>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th class="w-time">时间</th><th class="w-course">课程</th><th class="w-kind">类型</th><th class="w-res">结果</th><th>消息</th></tr>
+              </thead>
+              <tbody id="record-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view hidden" id="view-settings">
+        <div class="cols cols-settings">
+          <section class="col">
+            <div class="col-head"><h2>巡检策略</h2></div>
+            <div class="fields">
+              <label class="field">
+                <span>轮询间隔</span>
+                <div class="range-row">
+                  <input type="range" id="set-interval" min="10" max="300" step="5" value="60" />
+                  <b id="set-interval-val">60 秒</b>
+                </div>
+              </label>
+              <label class="switch-row">
+                <span>命中后自动签到</span>
+                <label class="switch"><input type="checkbox" id="set-auto" checked /><i></i></label>
+              </label>
+              <label class="field">
+                <span>签到码 / 手势编码</span>
+                <input id="set-code" placeholder="老师公布的数字或手势轨迹" />
+              </label>
+            </div>
+          </section>
+
+          <section class="col">
+            <div class="col-head"><h2>位置签到</h2></div>
+            <div class="fields">
+              <label class="field"><span>纬度</span><input id="set-lat" placeholder="39.904200" /></label>
+              <label class="field"><span>经度</span><input id="set-lng" placeholder="116.407400" /></label>
+              <label class="field"><span>地址描述</span><input id="set-addr" placeholder="教学楼 A 301" /></label>
+              <p class="tip">留空时位置签到只提醒，不代替提交。</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="settings-foot">
+          <button class="btn primary" id="btn-save-options">保存设置</button>
+          <span class="hint" id="settings-hint"></span>
+        </div>
+
+        <div class="block">
+          <div class="col-head"><h2>数据与安全</h2></div>
+          <div class="kv">
+            <span>数据文件</span>
+            <code id="set-path">—</code>
+          </div>
+          <div class="kv">
+            <span>密码存储</span>
+            <p>使用 Windows DPAPI 加密，仅本机当前用户可解密；不写入日志，不上传。</p>
+          </div>
+          <div class="kv">
+            <span>记录上限</span>
+            <p>最多保留 800 条签到记录，超出后自动丢弃最旧的一条。</p>
+          </div>
+          <div class="data-actions">
+            <button class="btn ghost sm" id="btn-open-dir">打开数据目录</button>
+            <span class="ver">Chaoxing Studio <b id="set-version">—</b></span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="modal-root"></div>
+<div id="toasts"></div>
+<script src="mock.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
