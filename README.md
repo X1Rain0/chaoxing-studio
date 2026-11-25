@@ -16,6 +16,12 @@
 
 ![夜间](docs/ink.png)
 
+## 下载
+
+不想自己编译的话，直接用 Releases 里的成品：
+
+**[ChaoxingStudio.exe](https://github.com/X1Rain0/chaoxing-studio/releases/latest/download/ChaoxingStudio.exe)** · 免安装，约 11.6 MB，解压后双击即用（需要 WebView2 Runtime，Win10/11 一般已内置）。
+
 ---
 
 ## 功能
