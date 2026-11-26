@@ -51,6 +51,9 @@ type Options struct {
 	Latitude  string `json:"latitude"`
 	Longitude string `json:"longitude"`
 	Address   string `json:"address"`
+	// AmapKey 是高德 Web 服务 Key，仅用于「地图选点」里的地名搜索与逆地理编码。
+	// 留空时地图仍可用（瓦片不需要 Key），只能手动点选。
+	AmapKey string `json:"amapKey"`
 }
 
 func DefaultOptions() Options {
