@@ -10,10 +10,11 @@ import (
 
 	"chaoxing-studio/internal/chaoxing"
 	"chaoxing-studio/internal/engine"
+	"chaoxing-studio/internal/geo"
 	"chaoxing-studio/internal/store"
 )
 
-const appVersion = "1.0.0"
+const appVersion = "1.1.0"
 
 // App 是 Wails 绑定层：只做参数校验与事件转发，业务逻辑全在 internal/*。
 type App struct {
@@ -209,6 +210,18 @@ func (a *App) SaveOptions(opts store.Options) (store.Options, error) {
 	saved := a.st.Options()
 	a.eng.ApplyGlobalOptions(saved)
 	return saved, nil
+}
+
+// ---------- 地图选点 ----------
+
+// PlaceSearch 按关键词检索地点（需要高德 Web 服务 Key，否则返回 geo.ErrNoKey）。
+func (a *App) PlaceSearch(keyword, city string) ([]geo.Place, error) {
+	return geo.Search(a.ctx, a.st.Options().AmapKey, keyword, city)
+}
+
+// PlaceReverse 由经纬度反查地址文字（同样需要 Key）。
+func (a *App) PlaceReverse(latitude, longitude float64) (geo.Place, error) {
+	return geo.Reverse(a.ctx, a.st.Options().AmapKey, latitude, longitude)
 }
 
 // ---------- 杂项 ----------
