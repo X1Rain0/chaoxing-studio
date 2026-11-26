@@ -4,6 +4,12 @@ build/bin/
 *.dll
 *.syso
 
+# 截图草稿（定稿图在 docs/）
+build/shot-*.png
+build/picker*.png
+build/v[0-9]*-*.png
+build/tree-debug.json
+
 # 运行期数据（绝不入库）
 data/
 webview-data/
