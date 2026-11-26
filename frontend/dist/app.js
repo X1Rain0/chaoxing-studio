@@ -454,7 +454,9 @@
       signCode: $('#set-code').value.trim(),
       latitude: $('#set-lat').value.trim(),
       longitude: $('#set-lng').value.trim(),
-      address: $('#set-addr').value.trim()
+      address: $('#set-addr').value.trim(),
+      /* 地图选点弹层里填的高德 Key，表单本身没有输入框，沿用已保存的值 */
+      amapKey: (S.options && S.options.amapKey) || ''
     };
   }
 
@@ -576,6 +578,322 @@
   }
 
   function closeModal() { $('#modal-root').innerHTML = ''; }
+
+  /* ---------------- 弹窗：地图选点 ----------------
+     手写 slippy map：256px 瓦片 + Web 墨卡托，底图用高德矢量/卫星瓦片（无需 Key）。
+     坐标系 GCJ-02，与学习通、高德一致，取到的就是能直接提交的数字。 */
+  const MAP_MIN_Z = 3;
+  const MAP_MAX_Z = 18;
+  const TILE_PX = 256;
+
+  const TILES = {
+    vec: (z, x, y) => 'https://webrd0' + (1 + ((x + y) % 4)) + '.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x=' + x + '&y=' + y + '&z=' + z,
+    sat: (z, x, y) => 'https://webst0' + (1 + ((x + y) % 4)) + '.is.autonavi.com/appmaptile?style=6&x=' + x + '&y=' + y + '&z=' + z
+  };
+
+  const M = { z: 16, lat: 39.9042, lng: 116.4074, pin: null, base: 'vec', tiles: new Map(), drag: null };
+
+  const mercX = (lng, z) => (lng + 180) / 360 * Math.pow(2, z);
+  const mercY = (lat, z) => {
+    const s = Math.sin(Math.max(-85.05, Math.min(85.05, lat)) * Math.PI / 180);
+    return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * Math.pow(2, z);
+  };
+  const mercLng = (x, z) => x / Math.pow(2, z) * 360 - 180;
+  const mercLat = (y, z) => {
+    const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+    return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  };
+  const mapErr = (e) => (e && e.message) ? e.message : String(e);
+
+  function mapHint(msg) {
+    const el = $('#map-hint');
+    if (el) el.textContent = msg || '';
+  }
+
+  function mapDraw() {
+    const canvas = $('#map-canvas');
+    if (!canvas) return;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const z = M.z;
+    const n = Math.pow(2, z);
+    const cx = mercX(M.lng, z) * TILE_PX;
+    const cy = mercY(M.lat, z) * TILE_PX;
+    const left = cx - w / 2;
+    const top = cy - h / 2;
+
+    const x0 = Math.floor(left / TILE_PX);
+    const x1 = Math.floor((left + w - 1) / TILE_PX);
+    const y0 = Math.max(0, Math.floor(top / TILE_PX));
+    const y1 = Math.min(n - 1, Math.floor((top + h - 1) / TILE_PX));
+
+    const seen = new Set();
+    for (let tx = x0; tx <= x1; tx++) {
+      for (let ty = y0; ty <= y1; ty++) {
+        const wx = ((tx % n) + n) % n;
+        const key = M.base + '/' + z + '/' + wx + '/' + ty;
+        seen.add(key);
+        let img = M.tiles.get(key);
+        if (!img) {
+          img = document.createElement('img');
+          img.className = 'map-tile';
+          img.alt = '';
+          img.decoding = 'async';
+          img.draggable = false;
+          img.src = TILES[M.base](z, wx, ty);
+          M.tiles.set(key, img);
+          canvas.insertBefore(img, canvas.firstChild);
+        }
+        img.style.transform = 'translate3d(' + (tx * TILE_PX - left) + 'px,' + (ty * TILE_PX - top) + 'px,0)';
+      }
+    }
+    M.tiles.forEach((img, key) => {
+      if (!seen.has(key)) { img.remove(); M.tiles.delete(key); }
+    });
+
+    const pin = $('#map-pin');
+    if (pin) {
+      if (M.pin) {
+        pin.hidden = false;
+        pin.style.transform = 'translate3d(' + (mercX(M.pin.lng, z) * TILE_PX - left) + 'px,' + (mercY(M.pin.lat, z) * TILE_PX - top) + 'px,0)';
+      } else {
+        pin.hidden = true;
+      }
+    }
+    const coord = $('#map-coord');
+    if (coord) {
+      coord.textContent = M.pin
+        ? M.pin.lat.toFixed(6) + ', ' + M.pin.lng.toFixed(6)
+        : '未选点 · 视野中心 ' + M.lat.toFixed(4) + ', ' + M.lng.toFixed(4);
+    }
+    const mode = $('#map-mode');
+    if (mode) mode.textContent = M.base === 'sat' ? '卫星影像' : '矢量底图';
+  }
+
+  function mapPointAt(clientX, clientY) {
+    const canvas = $('#map-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const left = mercX(M.lng, M.z) * TILE_PX - rect.width / 2;
+    const top = mercY(M.lat, M.z) * TILE_PX - rect.height / 2;
+    const wx = left + (clientX - rect.left);
+    const wy = top + (clientY - rect.top);
+    return { lat: mercLat(wy / TILE_PX, M.z), lng: mercLng(wx / TILE_PX, M.z) };
+  }
+
+  function mapZoomAt(delta, clientX, clientY) {
+    const z = Math.max(MAP_MIN_Z, Math.min(MAP_MAX_Z, M.z + delta));
+    if (z === M.z) return;
+    const canvas = $('#map-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const anchor = mapPointAt(clientX, clientY);
+    M.z = z;
+    const px = mercX(anchor.lng, z) * TILE_PX;
+    const py = mercY(anchor.lat, z) * TILE_PX;
+    M.lng = mercLng((px - (clientX - rect.left) + rect.width / 2) / TILE_PX, z);
+    M.lat = mercLat((py - (clientY - rect.top) + rect.height / 2) / TILE_PX, z);
+    mapDraw();
+  }
+
+  async function mapReverse() {
+    if (!M.pin) return;
+    if (!(S.options && S.options.amapKey)) return;
+    try {
+      const p = await call('PlaceReverse', M.pin.lat, M.pin.lng);
+      if (p && (p.address || p.region)) {
+        const input = $('#map-addr');
+        if (input && !input.value.trim()) input.value = p.address || p.region;
+        mapHint('');
+      }
+    } catch (e) {
+      mapHint(mapErr(e));
+    }
+  }
+
+  async function mapSearch() {
+    const input = $('#map-q');
+    const box = $('#map-results');
+    const kw = input.value.trim();
+    if (!kw) { input.focus(); return; }
+    box.innerHTML = '<div class="map-note">检索中…</div>';
+    try {
+      const list = await call('PlaceSearch', kw, '');
+      if (!list || !list.length) {
+        box.innerHTML = '<div class="map-note">没有找到「' + esc(kw) + '」，换个说法，或者直接在地图上点。</div>';
+        return;
+      }
+      box.innerHTML = list.map((p, i) => '<button type="button" class="map-hit" data-i="' + i + '">' +
+        '<b>' + esc(p.name || '未命名地点') + '</b>' +
+        '<span>' + esc(p.address || p.region || '') + '</span>' +
+        '</button>').join('');
+      $$('.map-hit', box).forEach((el) => {
+        el.onclick = () => {
+          const p = list[parseInt(el.dataset.i, 10)];
+          M.pin = { lat: p.latitude, lng: p.longitude };
+          M.lat = p.latitude;
+          M.lng = p.longitude;
+          M.z = Math.max(M.z, 16);
+          const addr = $('#map-addr');
+          if (addr && !addr.value.trim()) addr.value = p.address || p.name || '';
+          mapHint('');
+          mapDraw();
+        };
+      });
+    } catch (e) {
+      box.innerHTML = '<div class="map-note">' + esc(mapErr(e)) + '</div>';
+    }
+  }
+
+  function mapBindCanvas() {
+    const canvas = $('#map-canvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      canvas.setPointerCapture(ev.pointerId);
+      M.drag = {
+        id: ev.pointerId,
+        x: ev.clientX,
+        y: ev.clientY,
+        wx: mercX(M.lng, M.z) * TILE_PX,
+        wy: mercY(M.lat, M.z) * TILE_PX,
+        moved: 0
+      };
+      canvas.classList.add('dragging');
+    });
+
+    canvas.addEventListener('pointermove', (ev) => {
+      if (!M.drag || ev.pointerId !== M.drag.id) return;
+      const dx = ev.clientX - M.drag.x;
+      const dy = ev.clientY - M.drag.y;
+      M.drag.moved = Math.max(M.drag.moved, Math.abs(dx), Math.abs(dy));
+      M.lng = mercLng((M.drag.wx - dx) / TILE_PX, M.z);
+      M.lat = mercLat((M.drag.wy - dy) / TILE_PX, M.z);
+      mapDraw();
+    });
+
+    const endDrag = (ev) => {
+      if (!M.drag || ev.pointerId !== M.drag.id) return;
+      const moved = M.drag.moved;
+      M.drag = null;
+      canvas.classList.remove('dragging');
+      if (moved < 5) {
+        const p = mapPointAt(ev.clientX, ev.clientY);
+        M.pin = { lat: p.lat, lng: p.lng };
+        mapHint('');
+        mapDraw();
+        mapReverse();
+      }
+    };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', () => {
+      M.drag = null;
+      canvas.classList.remove('dragging');
+    });
+
+    canvas.addEventListener('wheel', (ev) => {
+      ev.preventDefault();
+      mapZoomAt(ev.deltaY < 0 ? 1 : -1, ev.clientX, ev.clientY);
+    }, { passive: false });
+
+    canvas.addEventListener('dblclick', (ev) => {
+      ev.preventDefault();
+      mapZoomAt(1, ev.clientX, ev.clientY);
+    });
+  }
+
+  function openMapPicker() {
+    const o = S.options || {};
+    const lat0 = parseFloat(o.latitude);
+    const lng0 = parseFloat(o.longitude);
+    const has = isFinite(lat0) && isFinite(lng0) && Math.abs(lat0) <= 90 && Math.abs(lng0) <= 180;
+
+    M.z = has ? 17 : 16;
+    M.lat = has ? lat0 : 39.9042;
+    M.lng = has ? lng0 : 116.4074;
+    M.pin = has ? { lat: lat0, lng: lng0 } : null;
+    M.base = 'vec';
+    M.tiles = new Map();
+    M.drag = null;
+
+    $('#modal-root').innerHTML =
+      '<div class="overlay" id="ov-map"><div class="modal map-modal">' +
+        '<div class="map-head"><h3>在地图上选点</h3><span class="map-mode" id="map-mode">矢量底图</span></div>' +
+        '<p class="sub">拖动平移，滚轮缩放，单击落点。取到的坐标是 GCJ-02，可以直接用于位置签到。</p>' +
+        '<div class="map-search">' +
+          '<input id="map-q" placeholder="搜地名，例如「图书馆」" autocomplete="off" />' +
+          '<button class="btn ghost sm" id="btn-map-search" type="button">搜索</button>' +
+        '</div>' +
+        '<div class="map-frame"><div class="map-canvas" id="map-canvas">' +
+          '<div class="map-pin" id="map-pin" hidden><i></i></div>' +
+          '<div class="map-zoom">' +
+            '<button type="button" id="map-zin" aria-label="放大">+</button>' +
+            '<button type="button" id="map-zout" aria-label="缩小">−</button>' +
+            '<button type="button" id="map-base" aria-label="切换底图">图</button>' +
+          '</div>' +
+          '<span class="map-sign">© 高德地图</span>' +
+        '</div></div>' +
+        '<div class="map-read"><span id="map-coord">—</span><span class="map-crs">GCJ-02</span></div>' +
+        '<div class="map-results" id="map-results"></div>' +
+        '<label class="field"><span>地址描述</span><input id="map-addr" placeholder="图书馆东门" /></label>' +
+        '<label class="field map-key-row"><span>高德 Key（可选，用于地名搜索与地址回填）</span>' +
+          '<input id="map-key" placeholder="留空也能点选，只是没有搜索" autocomplete="off" /></label>' +
+        '<div class="map-hint" id="map-hint"></div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn ghost" id="btn-map-cancel" type="button">取消</button>' +
+          '<button class="btn primary" id="btn-map-use" type="button">使用此位置</button>' +
+        '</div>' +
+      '</div></div>';
+
+    $('#map-key').value = o.amapKey || '';
+    $('#map-addr').value = o.address || '';
+    mapBindCanvas();
+    mapDraw();
+
+    $('#btn-map-search').onclick = mapSearch;
+    $('#map-q').onkeydown = (ev) => { if (ev.key === 'Enter') mapSearch(); };
+    $('#map-zin').onclick = () => {
+      const c = $('#map-canvas');
+      const r = c.getBoundingClientRect();
+      mapZoomAt(1, r.left + r.width / 2, r.top + r.height / 2);
+    };
+    $('#map-zout').onclick = () => {
+      const c = $('#map-canvas');
+      const r = c.getBoundingClientRect();
+      mapZoomAt(-1, r.left + r.width / 2, r.top + r.height / 2);
+    };
+    $('#map-base').onclick = () => {
+      M.base = M.base === 'sat' ? 'vec' : 'sat';
+      M.tiles.forEach((img, key) => {
+        const parts = key.split('/');
+        img.src = TILES[M.base](parts[1] | 0, parts[2] | 0, parts[3] | 0);
+      });
+      mapDraw();
+    };
+    $('#btn-map-cancel').onclick = closeModal;
+    $('#ov-map').onclick = (ev) => { if (ev.target.id === 'ov-map') closeModal(); };
+    $('#btn-map-use').onclick = async () => {
+      if (!M.pin) { mapHint('先在地图上点一下要签到的大致位置。'); return; }
+      const lat = M.pin.lat.toFixed(6);
+      const lng = M.pin.lng.toFixed(6);
+      const addr = $('#map-addr').value.trim();
+      const key = $('#map-key').value.trim();
+
+      $('#set-lat').value = lat;
+      $('#set-lng').value = lng;
+      $('#set-addr').value = addr;
+      S.options = Object.assign({}, S.options, { latitude: lat, longitude: lng, address: addr, amapKey: key });
+      try {
+        S.options = await call('SaveOptions', collectOptions());
+        toast('ok', '位置已保存', lat + ', ' + lng);
+        closeModal();
+      } catch (e) {
+        toast('err', '保存失败', mapErr(e));
+      }
+    };
+
+    const q = $('#map-q');
+    if (q) q.focus();
+  }
 
   /* ---------------- 动作 ---------------- */
   async function toggleMonitor() {
@@ -751,6 +1069,9 @@
 
     $('#set-interval').oninput = () => { $('#set-interval-val').textContent = $('#set-interval').value + ' 秒'; };
 
+    const pick = $('#btn-pick-map');
+    if (pick) pick.onclick = openMapPicker;
+
     $('#btn-save-options').onclick = async () => {
       const opts = collectOptions();
       const hint = $('#settings-hint');
@@ -797,6 +1118,12 @@
       else { renderPills(); renderStats(); renderCourses(); }
       const hash = (location.hash || '').replace('#', '');
       if (VIEW_TITLE[hash]) switchView(hash);
+
+      /* 便于截图与调试：?picker=1 直接打开地图选点弹层 */
+      if (new URLSearchParams(location.search).get('picker') === '1') {
+        switchView('settings');
+        openMapPicker();
+      }
     } catch (e) {
       toast('err', '初始化失败', (e && e.message) ? e.message : String(e));
       renderPills();
