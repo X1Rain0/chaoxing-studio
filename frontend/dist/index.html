@@ -184,12 +184,17 @@
           </section>
 
           <section class="col">
-            <div class="col-head"><h2>位置签到</h2></div>
+            <div class="col-head">
+              <h2>位置签到</h2>
+              <button class="btn ghost sm" id="btn-pick-map" type="button">在地图上选点</button>
+            </div>
             <div class="fields">
-              <label class="field"><span>纬度</span><input id="set-lat" placeholder="39.904200" /></label>
-              <label class="field"><span>经度</span><input id="set-lng" placeholder="116.407400" /></label>
+              <div class="coord-row">
+                <label class="field"><span>纬度</span><input id="set-lat" placeholder="39.904200" inputmode="decimal" /></label>
+                <label class="field"><span>经度</span><input id="set-lng" placeholder="116.407400" inputmode="decimal" /></label>
+              </div>
               <label class="field"><span>地址描述</span><input id="set-addr" placeholder="教学楼 A 301" /></label>
-              <p class="tip">留空时位置签到只提醒，不代替提交。</p>
+              <p class="tip">地图取点用高德坐标系（GCJ-02），与学习通一致；也可以直接粘贴老师给的经纬度。</p>
             </div>
           </section>
         </div>
