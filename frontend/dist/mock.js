@@ -91,7 +91,7 @@
   const App = {
     async Bootstrap() {
       return {
-        version: '1.0.0',
+        version: '1.1.0',
         dataPath: 'C:\\Users\\you\\AppData\\Roaming\\ChaoxingStudio\\data.json',
         accounts: clone(demoAccounts),
         records: clone(demoRecords),
@@ -133,9 +133,21 @@
     async ClearRecords() { demoRecords = []; return null; },
     async Options() { return clone(demoOptions); },
     async SaveOptions(o) { demoOptions = Object.assign({}, demoOptions, o); return clone(demoOptions); },
+    async PlaceSearch(keyword) {
+      await wait(220);
+      const k = String(keyword || '');
+      return [
+        { name: k || '图书馆', address: '主校区 ' + (k || '图书馆') + ' 东门', region: '示例省 示例市 示例区', latitude: 39.905210, longitude: 116.408930 },
+        { name: (k || '图书馆') + '（西门）', address: '主校区 求是大道 ' + (k || '') , region: '示例省 示例市 示例区', latitude: 39.903870, longitude: 116.405120 }
+      ];
+    },
+    async PlaceReverse(latitude, longitude) {
+      await wait(180);
+      return { name: '', address: '主校区 图书馆 4 层（' + Number(latitude).toFixed(4) + ', ' + Number(longitude).toFixed(4) + '）', region: '示例省 示例市 示例区', latitude, longitude };
+    },
     async DataPath() { return 'C:\\Users\\you\\AppData\\Roaming\\ChaoxingStudio\\data.json'; },
     async OpenDataDir() { return null; },
-    async Version() { return '1.0.0'; }
+    async Version() { return '1.1.0'; }
   };
 
   window.go = { main: { App } };
