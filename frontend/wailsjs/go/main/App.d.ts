@@ -3,6 +3,7 @@
 import {main} from '../models';
 import {chaoxing} from '../models';
 import {store} from '../models';
+import {geo} from '../models';
 import {engine} from '../models';
 
 export function Bootstrap():Promise<main.BootstrapData>;
@@ -20,6 +21,10 @@ export function Login(arg1:string,arg2:string):Promise<main.LoginResult>;
 export function OpenDataDir():Promise<void>;
 
 export function Options():Promise<store.Options>;
+
+export function PlaceReverse(arg1:number,arg2:number):Promise<geo.Place>;
+
+export function PlaceSearch(arg1:string,arg2:string):Promise<Array<geo.Place>>;
 
 export function Records(arg1:string,arg2:number):Promise<Array<store.Record>>;
 
