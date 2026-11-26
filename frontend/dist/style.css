@@ -1377,6 +1377,273 @@ input[type="range"]:focus-visible {
   to { opacity: 0; transform: translateY(5px); }
 }
 
+/* ---------------- 地图选点 ---------------- */
+.coord-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.modal.map-modal {
+  width: min(720px, 100%);
+}
+
+.map-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.map-head h3 {
+  margin: 0;
+  font-size: var(--fs-15);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.map-mode {
+  font-size: var(--fs-11);
+  color: var(--ink-4);
+}
+
+.map-search {
+  display: flex;
+  gap: 8px;
+}
+
+.map-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-frame {
+  padding: 6px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-lg);
+  background: var(--paper-2);
+}
+
+.map-canvas {
+  position: relative;
+  height: 340px;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--paper-3);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.map-canvas.dragging {
+  cursor: grabbing;
+}
+
+.map-tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 256px;
+  height: 256px;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+
+.map-pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.map-pin i {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--seal);
+  border-radius: 50%;
+  background: var(--field);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+.map-pin::before,
+.map-pin::after {
+  content: "";
+  position: absolute;
+  background: var(--seal);
+}
+
+.map-pin::before {
+  top: -13px;
+  left: -1px;
+  width: 2px;
+  height: 26px;
+}
+
+.map-pin::after {
+  top: -1px;
+  left: -13px;
+  width: 26px;
+  height: 2px;
+}
+
+.map-zoom {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--field);
+}
+
+.map-zoom button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: var(--field);
+  color: var(--ink-2);
+  font-size: var(--fs-13);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.map-zoom button + button {
+  border-top: 1px solid var(--rule);
+}
+
+.map-zoom button:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.map-zoom button:active {
+  background: var(--paper-3);
+}
+
+.map-zoom button:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: -2px;
+}
+
+.map-sign {
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  font-size: var(--fs-11);
+  color: var(--ink-4);
+  background: var(--field);
+  padding: 1px 4px;
+  border-radius: var(--r);
+  pointer-events: none;
+}
+
+.map-read {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.map-crs {
+  font-size: var(--fs-11);
+  color: var(--ink-4);
+  letter-spacing: 0.04em;
+}
+
+.map-results {
+  max-height: 118px;
+  overflow-y: auto;
+}
+
+.map-results:empty {
+  display: none;
+}
+
+.map-hit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  background: none;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.map-hit:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.map-hit:hover {
+  background: var(--paper-2);
+}
+
+.map-hit:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: -2px;
+}
+
+.map-hit b {
+  display: block;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-hit span {
+  display: block;
+  font-size: var(--fs-11);
+  color: var(--ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-note {
+  padding: 7px 8px 0;
+  font-size: var(--fs-12);
+  color: var(--ink-3);
+}
+
+.map-hint:not(:empty) {
+  font-size: var(--fs-12);
+  color: var(--warn);
+  line-height: 1.6;
+}
+
+/* 底图瓦片是第三方的浅色图纸，夜间反相压暗，免得在暗界面里刺眼 */
+:root[data-theme="ink"] .map-canvas {
+  background: var(--paper-2);
+}
+
+:root[data-theme="ink"] .map-tile {
+  filter: invert(1) hue-rotate(180deg) saturate(0.82) brightness(0.94) contrast(0.96);
+}
+
+.map-key-row input {
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+}
+
 /* ---------------- 窄窗 ---------------- */
 @media (max-width: 1180px) {
   .app { grid-template-columns: 216px minmax(0, 1fr); }
