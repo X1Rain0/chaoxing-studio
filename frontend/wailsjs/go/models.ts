@@ -193,6 +193,31 @@ export namespace engine {
 
 }
 
+export namespace geo {
+	
+	export class Place {
+	    name: string;
+	    address: string;
+	    region: string;
+	    latitude: number;
+	    longitude: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Place(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.address = source["address"];
+	        this.region = source["region"];
+	        this.latitude = source["latitude"];
+	        this.longitude = source["longitude"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class BootstrapData {
@@ -330,6 +355,7 @@ export namespace store {
 	    latitude: string;
 	    longitude: string;
 	    address: string;
+	    amapKey: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Options(source);
@@ -343,6 +369,7 @@ export namespace store {
 	        this.latitude = source["latitude"];
 	        this.longitude = source["longitude"];
 	        this.address = source["address"];
+	        this.amapKey = source["amapKey"];
 	    }
 	}
 	export class Record {
