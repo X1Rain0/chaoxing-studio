@@ -34,6 +34,14 @@ export function Options() {
   return window['go']['main']['App']['Options']();
 }
 
+export function PlaceReverse(arg1, arg2) {
+  return window['go']['main']['App']['PlaceReverse'](arg1, arg2);
+}
+
+export function PlaceSearch(arg1, arg2) {
+  return window['go']['main']['App']['PlaceSearch'](arg1, arg2);
+}
+
 export function Records(arg1, arg2) {
   return window['go']['main']['App']['Records'](arg1, arg2);
 }
