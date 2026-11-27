@@ -24,7 +24,7 @@
 
 不想自己编译的话，直接用 Releases 里的成品：
 
-**[ChaoxingStudio.exe](https://github.com/X1Rain0/chaoxing-studio/releases/latest/download/ChaoxingStudio.exe)** · 免安装，约 11.6 MB，解压后双击即用（需要 WebView2 Runtime，Win10/11 一般已内置）。
+**[ChaoxingStudio.exe](https://github.com/X1Rain0/chaoxing-studio/releases/latest/download/ChaoxingStudio.exe)** · 免安装，约 11.8 MB，双击即用（需要 WebView2 Runtime，Win10/11 一般已内置）。
 
 Android 版在 [`android/`](android/README.md)：Kotlin 原生界面 + Go 内核，六类签到都走同一套协议实现。
 
