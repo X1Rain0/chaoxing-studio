@@ -9,6 +9,12 @@ param(
 )
 
 # 增量同步：把本地有变化的文件用 Contents API 推上去（不依赖 Git Data API）
+#
+# 【备用脚本】仓库已由 git 接管：origin/main 有真实历史，凭据来自 Windows 凭据管理器，
+# 日常改动用 `git add -A && git commit && git push` 即可。本脚本只适用于没有 git 的环境。
+# 注意：它按文件逐个上传、只读工作区，曾被仓库根 .gitignore 的裸 `data/` 规则连累——
+# 那条规则把 android/.../chaoxingstudio/data/ 整包忽略掉，REST 同步于是把 Kotlin data 包
+# 漏在公共仓库之外，克隆下来无法编译。该规则已改为 `/data/`，同步前先确认要传的文件在列。
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $api = 'https://api.github.com'

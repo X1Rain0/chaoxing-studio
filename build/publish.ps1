@@ -10,6 +10,10 @@
   Token 权限：
     · classic PAT  → public_repo（公开库）或 repo（私有库）
     · fine-grained → Contents: Read and write；新建仓库还需 Administration: Read and write
+
+  【备用脚本】仓库已由 git 接管（真实历史 + Windows 凭据管理器里的 https 凭据），
+  日常改动用 `git add -A && git commit && git push` 就够，不需要 PAT。只有在本机没有
+  git、或要让脚本代建仓库时才用本脚本；它只按工作区现有文件上传，不携带历史。
 #>
 [CmdletBinding()]
 param(
