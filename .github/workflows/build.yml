@@ -66,6 +66,8 @@ jobs:
         with:
           files: build/bin/ChaoxingStudio.exe
           fail_on_unmatched_files: true
+          name: ${{ github.ref_name }}
+          body_path: .github/release-notes.md
 
   android:
     name: Android / debug APK
@@ -154,16 +156,27 @@ jobs:
           "$bt/apksigner" verify --verbose "$apk" | head -5
           "$bt/zipalign" -c -P 16 -v 4 "$apk" | tail -2
 
+      - name: Stage APK for release
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk ChaoxingStudio-android.apk
+          ls -l ChaoxingStudio-android.apk
+          sha256sum ChaoxingStudio-android.apk
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ChaoxingStudio-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            ChaoxingStudio-android.apk
           if-no-files-found: error
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: ChaoxingStudio-android.apk
           fail_on_unmatched_files: true
+          name: ${{ github.ref_name }}
+          body_path: .github/release-notes.md
+
