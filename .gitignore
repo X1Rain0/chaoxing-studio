@@ -10,9 +10,9 @@ build/picker*.png
 build/v[0-9]*-*.png
 build/tree-debug.json
 
-# 运行期数据（绝不入库）
-data/
-webview-data/
+# 运行期数据（绝不入库；锚定仓库根，避免误伤 android/…/data 包）
+/data/
+/webview-data/
 *.log
 
 # 编辑器 / 系统
@@ -24,5 +24,14 @@ Thumbs.db
 # 依赖（本项目前端无依赖，仅防御）
 node_modules/
 
-# 设计脚本的临时记录
-.hallmark/log.json
+# 设计脚本的临时记录与本机交互状态
+.hallmark/
+.impeccable/
+
+# Android 本地工具链与生成产物
+android/.gradle/
+android/local.properties
+android/build/
+android/app/build/
+android/app/libs/*.aar
+android/app/libs/*-sources.jar
