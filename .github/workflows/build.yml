@@ -105,9 +105,11 @@ jobs:
           echo "ANDROID_HOME=${ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
 
       - name: Go tests
+        # 只测协议层与桥接层：仓库根的 Wails main 包在 Linux 上要 cgo + gtk3/webkit2gtk，
+        # 那是 windows job 的事，这里编译它只会白等一轮依赖安装
         run: |
-          go test ./...
-          go vet ./...
+          go test ./internal/... ./mobilebridge/...
+          go vet ./internal/... ./mobilebridge/...
 
       - name: Build Go AAR
         run: |
