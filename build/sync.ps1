@@ -14,7 +14,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $api = 'https://api.github.com'
 
 $skipDir  = @('.git', 'build\bin', 'build\windows\installer', 'node_modules', 'data', 'webview-data', '.hallmark')
-$skipFile = @('*.exe', '*.dll', '*.syso', '*.log', '*.tmp', 'tree-debug.json')
+$skipFile = @('*.exe', '*.dll', '*.syso', '*.log', '*.tmp', 'tree-debug.json', 'build\shot-*.png', 'build\picker*.png', 'build\v[0-9]*-*.png')
 
 # classic PAT 没有 workflow scope 时，GitHub 会对着 .github/workflows/ 下的写入返回 404
 # （Git Data API 的 tree 提交同理）。所以默认跳过，需要时用 -IncludeWorkflows 显式打开。

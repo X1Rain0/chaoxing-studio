@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://*.is.autonavi.com data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none';">
+  <title>地图选点</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: #f7f4ed; color: #1b1813; font-family: system-ui, sans-serif; }
+    #map { position: relative; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+    #map.dragging { cursor: grabbing; }
+    #tiles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .tile { position: absolute; top: 0; left: 0; width: 256px; height: 256px; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+    #pin { position: absolute; z-index: 2; width: 18px; height: 18px; border: 3px solid #fffaf2; border-radius: 50%; background: #b23a2e; box-shadow: 0 1px 5px rgba(27,24,19,.45); transform: translate(-50%,-50%); pointer-events: none; }
+    #pin::before, #pin::after { content: ""; position: absolute; background: #b23a2e; opacity: .92; }
+    #pin::before { width: 2px; height: 30px; left: 5px; top: -9px; z-index: -1; }
+    #pin::after { width: 30px; height: 2px; left: -9px; top: 5px; z-index: -1; }
+    .controls { position: absolute; z-index: 4; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 7px; }
+    .control, .base-control { min-width: 44px; min-height: 44px; border: 1px solid rgba(91,84,73,.28); border-radius: 12px; background: rgba(247,244,237,.96); color: #1b1813; box-shadow: 0 2px 8px rgba(27,24,19,.18); font: 600 20px/1 system-ui,sans-serif; }
+    .base-control { position: absolute; z-index: 4; right: 12px; bottom: 12px; min-width: 78px; padding: 0 12px; font-size: 13px; }
+    #hint { position: absolute; z-index: 3; top: 12px; left: 12px; max-width: calc(100% - 100px); padding: 8px 10px; border: 1px solid rgba(91,84,73,.22); border-radius: 10px; background: rgba(247,244,237,.94); color: #413b32; font-size: 12px; line-height: 1.35; }
+    #attrib { position: absolute; z-index: 3; left: 8px; bottom: 7px; padding: 3px 6px; border-radius: 5px; background: rgba(247,244,237,.86); color: #413b32; font-size: 10px; }
+    button { touch-action: manipulation; }
+    button:active { transform: scale(.96); }
+    @media (prefers-color-scheme: dark) {
+      body { background: #16130f; color: #f0e9dd; }
+      .control, .base-control, #hint, #attrib { background: rgba(22,19,15,.94); color: #f0e9dd; border-color: rgba(169,161,144,.28); }
+      #pin { border-color: #f0e9dd; }
+    }
+  </style>
+</head>
+<body>
+  <div id="map" aria-label="高德地图，点击设置位置">
+    <div id="tiles"></div>
+    <div id="pin" hidden></div>
+    <div id="hint">拖动浏览地图 · 点击放置位置标记</div>
+    <div class="controls">
+      <button class="control" type="button" aria-label="放大" onclick="zoomBy(1)">＋</button>
+      <button class="control" type="button" aria-label="缩小" onclick="zoomBy(-1)">−</button>
+    </div>
+    <button id="base" class="base-control" type="button" aria-label="切换底图" onclick="toggleBase()">卫星影像</button>
+    <div id="attrib">© 高德地图</div>
+  </div>
+  <script>
+    'use strict';
+    const TILE = 256;
+    const MIN_Z = 3;
+    const MAX_Z = 18;
+    const mapEl = document.getElementById('map');
+    const tilesEl = document.getElementById('tiles');
+    const pinEl = document.getElementById('pin');
+    const hintEl = document.getElementById('hint');
+    const baseEl = document.getElementById('base');
+    const tiles = new Map();
+    const view = { z: 16, lat: 39.9042, lng: 116.4074, pin: null, base: 'vec', drag: null };
+
+    function worldSize(z) { return TILE * Math.pow(2, z); }
+    function clamp(value, low, high) { return Math.max(low, Math.min(high, value)); }
+    function lngX(lng, z) { return (lng + 180) / 360 * worldSize(z); }
+    function latY(lat, z) {
+      const safeLat = clamp(lat, -85.05, 85.05) * Math.PI / 180;
+      return (1 - Math.asinh(Math.tan(safeLat)) / Math.PI) * 0.5 * worldSize(z);
+    }
+    function xLng(x, z) { return x / worldSize(z) * 360 - 180; }
+    function yLat(y, z) {
+      const n = Math.PI - 2 * Math.PI * y / worldSize(z);
+      return Math.atan(Math.sinh(n)) * 180 / Math.PI;
+    }
+    function normalizeCenter() {
+      const size = worldSize(view.z);
+      view.cx = ((view.cx % size) + size) % size;
+      view.cy = clamp(view.cy, 0, size);
+      view.lng = xLng(view.cx, view.z);
+      view.lat = yLat(view.cy, view.z);
+    }
+    function tileURL(base, z, x, y) {
+      const shard = 1 + ((x + y) % 4);
+      if (base === 'sat') {
+        return `https://webst0${shard}.is.autonavi.com/appmaptile?style=6&x=${x}&y=${y}&z=${z}`;
+      }
+      return `https://webrd0${shard}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x=${x}&y=${y}&z=${z}`;
+    }
+    function draw() {
+      const rect = mapEl.getBoundingClientRect();
+      if (!rect.width || !rect.height || !Number.isFinite(view.cx)) return;
+      const size = worldSize(view.z);
+      const leftWorld = view.cx - rect.width / 2;
+      const topWorld = view.cy - rect.height / 2;
+      const minX = Math.floor(leftWorld / TILE);
+      const maxX = Math.floor((leftWorld + rect.width) / TILE);
+      const minY = Math.max(0, Math.floor(topWorld / TILE));
+      const maxY = Math.min(Math.pow(2, view.z) - 1, Math.floor((topWorld + rect.height) / TILE));
+      const keep = new Set();
+      const tileCount = Math.pow(2, view.z);
+      for (let rawX = minX; rawX <= maxX; rawX++) {
+        const x = ((rawX % tileCount) + tileCount) % tileCount;
+        for (let y = minY; y <= maxY; y++) {
+          const key = `${view.base}/${view.z}/${x}/${y}/${rawX}`;
+          keep.add(key);
+          let image = tiles.get(key);
+          if (!image) {
+            image = document.createElement('img');
+            image.className = 'tile';
+            image.alt = '';
+            image.draggable = false;
+            image.src = tileURL(view.base, view.z, x, y);
+            image.onerror = () => { hintEl.textContent = '地图瓦片加载失败，请检查网络后重试'; };
+            tiles.set(key, image);
+            tilesEl.appendChild(image);
+          }
+          image.style.transform = `translate3d(${Math.round(rawX * TILE - leftWorld)}px,${Math.round(y * TILE - topWorld)}px,0)`;
+        }
+      }
+      for (const [key, image] of tiles) {
+        if (!keep.has(key)) { image.remove(); tiles.delete(key); }
+      }
+      if (view.pin) {
+        const px = lngX(view.pin.lng, view.z) - leftWorld;
+        const py = latY(view.pin.lat, view.z) - topWorld;
+        pinEl.hidden = false;
+        pinEl.style.left = `${px}px`;
+        pinEl.style.top = `${py}px`;
+      } else {
+        pinEl.hidden = true;
+      }
+      if (view.pin) hintEl.textContent = '拖动浏览地图 · 点击地图更换位置';
+    }
+    function pointAt(clientX, clientY) {
+      const rect = mapEl.getBoundingClientRect();
+      const wx = view.cx + clientX - rect.left - rect.width / 2;
+      const wy = view.cy + clientY - rect.top - rect.height / 2;
+      const size = worldSize(view.z);
+      const wrappedX = ((wx % size) + size) % size;
+      return { lat: yLat(clamp(wy, 0, size), view.z), lng: xLng(wrappedX, view.z) };
+    }
+    function selectPoint(point) {
+      view.pin = point;
+      draw();
+      if (window.AndroidMap && typeof window.AndroidMap.onPoint === 'function') {
+        window.AndroidMap.onPoint(point.lat.toFixed(6), point.lng.toFixed(6));
+      }
+    }
+    function zoomAt(delta, clientX, clientY) {
+      const newZoom = clamp(view.z + delta, MIN_Z, MAX_Z);
+      if (newZoom === view.z) return;
+      const anchor = pointAt(clientX, clientY);
+      view.z = newZoom;
+      const rect = mapEl.getBoundingClientRect();
+      view.cx = lngX(anchor.lng, view.z) - (clientX - rect.left - rect.width / 2);
+      view.cy = latY(anchor.lat, view.z) - (clientY - rect.top - rect.height / 2);
+      normalizeCenter();
+      draw();
+    }
+    function zoomBy(delta) {
+      const rect = mapEl.getBoundingClientRect();
+      zoomAt(delta, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }
+    function toggleBase() {
+      view.base = view.base === 'vec' ? 'sat' : 'vec';
+      baseEl.textContent = view.base === 'vec' ? '卫星影像' : '矢量底图';
+      draw();
+    }
+    mapEl.addEventListener('pointerdown', event => {
+      if (event.target.closest('button')) return;
+      mapEl.setPointerCapture(event.pointerId);
+      view.drag = { id: event.pointerId, x: event.clientX, y: event.clientY, cx: view.cx, cy: view.cy, moved: false };
+    });
+    mapEl.addEventListener('pointermove', event => {
+      if (!view.drag || view.drag.id !== event.pointerId) return;
+      const dx = event.clientX - view.drag.x;
+      const dy = event.clientY - view.drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 4) view.drag.moved = true;
+      if (view.drag.moved) {
+        view.cx = view.drag.cx - dx;
+        view.cy = view.drag.cy - dy;
+        normalizeCenter();
+        draw();
+      }
+    });
+    function finishPointer(event) {
+      if (!view.drag || view.drag.id !== event.pointerId) return;
+      const drag = view.drag;
+      view.drag = null;
+      if (!drag.moved) selectPoint(pointAt(event.clientX, event.clientY));
+    }
+    mapEl.addEventListener('pointerup', finishPointer);
+    mapEl.addEventListener('pointercancel', event => { if (view.drag && view.drag.id === event.pointerId) view.drag = null; });
+    mapEl.addEventListener('dblclick', event => {
+      event.preventDefault();
+      zoomAt(1, event.clientX, event.clientY);
+    });
+    mapEl.addEventListener('wheel', event => {
+      event.preventDefault();
+      zoomAt(event.deltaY < 0 ? 1 : -1, event.clientX, event.clientY);
+    }, { passive: false });
+    window.addEventListener('resize', draw);
+    window.zoomBy = zoomBy;
+    window.toggleBase = toggleBase;
+    window.initMap = (latitude, longitude, hasPoint, mapHeightDp) => {
+      if (Number.isFinite(mapHeightDp) && mapHeightDp > 0) {
+        const height = `${mapHeightDp}px`;
+        document.documentElement.style.height = height;
+        document.body.style.height = height;
+        mapEl.style.height = height;
+      }
+      const lat = Number(latitude);
+      const lng = Number(longitude);
+      view.lat = Number.isFinite(lat) ? clamp(lat, -85.05, 85.05) : 39.9042;
+      view.lng = Number.isFinite(lng) ? clamp(lng, -180, 180) : 116.4074;
+      view.z = 16;
+      view.cx = lngX(view.lng, view.z);
+      view.cy = latY(view.lat, view.z);
+      view.pin = hasPoint ? { lat: view.lat, lng: view.lng } : null;
+      normalizeCenter();
+      draw();
+    };
+    // Keep the packaged asset inspectable in a desktop browser without the Android bridge.
+    if (location.protocol === 'file:') window.initMap(39.9042, 116.4074, false);
+  </script>
+</body>
+</html>

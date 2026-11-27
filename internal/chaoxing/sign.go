@@ -15,9 +15,10 @@ var (
 )
 
 type SignInput struct {
-	SignCode string   `json:"signCode"`
-	Location Location `json:"location"`
-	Enc      string   `json:"enc"`
+	SignCode      string   `json:"signCode"`
+	Location      Location `json:"location"`
+	Enc           string   `json:"enc"`
+	PhotoObjectID string   `json:"photoObjectId,omitempty"`
 }
 
 // PreSign 复现 App 打开签到页的三步：preSign → analysis → analysis2。
@@ -123,12 +124,19 @@ func (c *Client) Sign(act Activity, in SignInput) (SignResult, error) {
 
 	switch kind {
 	case KindPhoto:
-		oid, oerr := c.PanObjectID()
-		if oerr != nil || oid == "" {
+		oid := strings.TrimSpace(in.PhotoObjectID)
+		if oid != "" && !validPanObjectID(oid) {
+			return fail("所选云盘图片ID格式无效")
+		}
+		if oid == "" {
+			var oerr error
+			oid, oerr = c.PanObjectID()
 			if oerr != nil {
 				return fail("云盘取图失败: " + oerr.Error())
 			}
-			return fail("云盘根目录没有 0.jpg / 0.png")
+		}
+		if oid == "" {
+			return fail("云盘根目录没有可用图片")
 		}
 		q := c.baseSignParams(act)
 		q.Set("useragent", "")

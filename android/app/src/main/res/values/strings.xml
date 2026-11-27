@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">学习通签到工坊</string>
+    <string name="monitor_channel_name">巡检服务</string>
+    <string name="monitor_channel_description">显示仍在运行的后台巡检状态</string>
+    <string name="events_channel_name">签到活动</string>
+    <string name="events_channel_description">发现新的签到活动时提醒</string>
+    <string name="monitor_notification_title">正在巡检学习通课程</string>
+    <string name="monitor_notification_body">每 %1$d 秒检查一次；发现新活动时通知</string>
+</resources>
