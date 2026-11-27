@@ -10,7 +10,7 @@
 - 是否启用 USB 调试：
 - 通知权限状态：
 - 电池优化/后台限制状态：
-- APK SHA-256：`76B75AD33E3CE5EE994A793AAD103063E67F4F00EFB39C6CAF2E7169D7C567BE`（79,367,020 bytes，clean rebuild）
+- APK SHA-256：`547D79F0C59F830A14D8FB892113A07C520854C25407F0CE48EE82CB0B218D47`（77,155,180 bytes，v1.2.0 Release 附件，CI 构建）
 
 ## 1. 安装与首屏
 
@@ -90,4 +90,10 @@
 | 2026-11-27 | Actions run `45954623576` | `ffd6dd4` | FAIL（已修）：`Go tests` 步跑 `go test ./...` 时连仓库根的 Wails main 包一起编译，Linux 上缺 gtk3/webkit2gtk 头文件；改为只测 `./internal/...` 与 `./mobilebridge/...`，桌面版交给 windows job。 |
 
 真实照片上传与真实签到提交仍未在 CI 或本地自动执行，由使用者本人在自己账号上验证。
+
+### Release 记录
+
+| 版本 | 触发 | Run | 附件 | 校验 |
+|---|---|---|---|---|
+| `v1.2.0` | 标签推送（提交 `1b3082f`） | `45964556764`：windows success / android success | `ChaoxingStudio.exe` 11,784,704 B、`ChaoxingStudio-android.apk` 77,155,180 B | APK SHA-256 `547d79f0c59f830a14d8fb892113a07c520854c25407f0ce48ee82cb0b218d47`（CI 日志与下载回来的 Release 附件逐字节一致）；`apksigner` v2 `Verifies`、`zipalign -c -P 16` `Verification successful`；`aapt2` 读到 `com.x1rain0.chaoxingstudio` v0.1.0、min 26 / target 36、label 学习通签到工坊；exe SHA-256 `6ba6f209d2791e31e067ff3ea89c74e94480f1925dac33da3fe21d10099d8fe6`。`releases/latest` 已指向 v1.2.0。 |
 

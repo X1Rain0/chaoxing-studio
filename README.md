@@ -26,7 +26,9 @@
 
 **[ChaoxingStudio.exe](https://github.com/X1Rain0/chaoxing-studio/releases/latest/download/ChaoxingStudio.exe)** · 免安装，约 11.6 MB，解压后双击即用（需要 WebView2 Runtime，Win10/11 一般已内置）。
 
-Android 版在 [`android/`](android/README.md)：Kotlin 原生界面 + Go 内核，六类签到都走同一套协议实现。APK 目前是 debug 签名（自用侧载），从 Actions 的 `ChaoxingStudio-android-debug` 产物下载，打 tag 时会一起挂到 Release。
+Android 版在 [`android/`](android/README.md)：Kotlin 原生界面 + Go 内核，六类签到都走同一套协议实现。
+
+**[ChaoxingStudio-android.apk](https://github.com/X1Rain0/chaoxing-studio/releases/latest/download/ChaoxingStudio-android.apk)** · 约 73.6 MiB，debug 签名（自用侧载，首次安装需允许「安装未知来源应用」），minSdk 26 / target 36。装好后用学习通账号登录，选课、开巡检即可；每次改动推到 `main` 都会由 Android job 构建并在 Actions 里留产物，打 tag 时才一起挂到 Release。
 
 ---
 
