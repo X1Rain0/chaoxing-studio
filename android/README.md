@@ -36,6 +36,10 @@ Then build from `android/` with the checked-in Gradle wrapper (JDK 17 is used fo
 adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 ```
 
+`app/libs/mobilebridge.aar` is generated, not committed, so a fresh clone must run `build-go-aar.ps1` before Gradle. That path was verified end to end: clone → `go test ./...` → `build-go-aar.ps1` → `:app:testDebugUnitTest :app:assembleDebug`, giving 24 passing JVM tests and a ~75.7 MiB debug APK.
+
+Build the APK from a clean tree when reporting its size or hash. A stale `app/build/` can leave padding inside `app-debug.apk` — one earlier build measured 96.4 MiB while carrying the same 75.7 MiB of entries; `:app:clean :app:assembleDebug` restored the real size.
+
 ## Device smoke test
 
 After starting one API 35/36 Android emulator or connecting one Android phone, run this from the repository root. Physical phones need USB debugging enabled and their RSA prompt accepted:

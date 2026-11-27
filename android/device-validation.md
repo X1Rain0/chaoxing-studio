@@ -10,7 +10,7 @@
 - 是否启用 USB 调试：
 - 通知权限状态：
 - 电池优化/后台限制状态：
-- APK SHA-256：`76F7FCA443AE3CA8D72CC5B65A9A5B4FF97676966CC26F543FB4AA12F5BB0D1A`（101,103,763 bytes）
+- APK SHA-256：`76B75AD33E3CE5EE994A793AAD103063E67F4F00EFB39C6CAF2E7169D7C567BE`（79,367,020 bytes，clean rebuild）
 
 ## 1. 安装与首屏
 
@@ -64,7 +64,7 @@
 
 ## 7. 日志与产物
 
-- 最新分支 APK（101,103,763 bytes；SHA-256见本页开头）已完成离线构建、v2签名和16 KB zipalign检查；24项Kotlin JVM测试、Go tests/vet、Android arm64 bridge build及Node地图回归全部通过。本轮在 MuMu 15/API35 上走通了相册选图→本地预览→预览模式禁用提交，并修正手势键盘被输入法改写的缺陷；真实上传与真实签到均未执行。
+- 最新分支 APK（79,367,020 bytes = 75.7 MiB；SHA-256见本页开头，来自 `:app:clean :app:assembleDebug`）已完成离线构建、v2签名和16 KB zipalign检查；24项Kotlin JVM测试、Go tests/vet、Android arm64 bridge build及Node地图回归全部通过。同一提交在全新克隆（`git clone --depth 1` → `go test ./...` → `build-go-aar.ps1` → `:app:testDebugUnitTest :app:assembleDebug`）里同样构建成功且24项测试全过，说明仓库自身可复现构建（AAR 不入库）。本轮在 MuMu 15/API35 上走通了相册选图→本地预览→预览模式禁用提交，并修正手势键盘被输入法改写的缺陷；真实上传与真实签到均未执行。
 
 - [ ] `android/device-smoke.ps1` 会在 `android/build/device-smoke/` 保存安装/启动记录、截图和（进程存活时）仅目标进程的 logcat。
 - [ ] 设备/API、每个失败步骤、截图与日志文件名记录在本页下方；不把个人课程信息或账号凭据写入公开仓库。
