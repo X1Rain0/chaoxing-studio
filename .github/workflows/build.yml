@@ -4,15 +4,33 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+    paths:
+      - 'android/**'
+      - 'mobilebridge/**'
+      - 'internal/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
 
+env:
+  GO_VERSION: '1.26'
+  JAVA_VERSION: '17'
+  ANDROID_PLATFORM: '36'
+  ANDROID_BUILD_TOOLS: '36.0.0'
+  ANDROID_NDK_VERSION: '27.3.13750724'
+
 jobs:
   windows:
     name: Windows / amd64
     runs-on: windows-latest
+    # 桌面版只在打 tag 或手动触发时构建，日常 main 推送留给 Android 那条
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout
@@ -21,7 +39,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
 
       - name: Install Wails CLI
@@ -47,4 +65,103 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: build/bin/ChaoxingStudio.exe
+          fail_on_unmatched_files: true
+
+  android:
+    name: Android / debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-${{ env.ANDROID_PLATFORM }}
+            build-tools;${{ env.ANDROID_BUILD_TOOLS }}
+            ndk;${{ env.ANDROID_NDK_VERSION }}
+          log-accepted-android-sdk-licenses: true
+
+      - name: Export Android NDK path
+        run: |
+          ndk_root="${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}"
+          test -d "$ndk_root" || { echo "NDK not found at $ndk_root"; ls "${ANDROID_SDK_ROOT}/ndk" || true; exit 1; }
+          echo "ANDROID_NDK_HOME=$ndk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=${ANDROID_SDK_ROOT}" >> "$GITHUB_ENV"
+
+      - name: Go tests
+        run: |
+          go test ./...
+          go vet ./...
+
+      - name: Build Go AAR
+        run: |
+          go tool gomobile init
+          mkdir -p android/app/libs
+          go tool gomobile bind \
+            -target android \
+            -androidapi 21 \
+            -javapkg com.x1rain0.chaoxingstudio.bridge \
+            -ldflags '-w -extldflags=-Wl,-z,max-page-size=16384' \
+            -o android/app/libs/mobilebridge.aar ./mobilebridge
+          ls -l android/app/libs/mobilebridge.aar
+
+      - name: Validate 16 KB page alignment
+        run: |
+          readelf="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          mkdir -p /tmp/aar && cd /tmp/aar && unzip -o -q "${GITHUB_WORKSPACE}/android/app/libs/mobilebridge.aar"
+          bad=0
+          for so in jni/*/libgojni.so; do
+            echo "· $so"
+            "$readelf" --program-headers --wide "$so" | awk '/LOAD/ { print "   " $0 }'
+            if "$readelf" --program-headers --wide "$so" | awk '/LOAD/ && $0 !~ /0x4000/ { found=1 } END { exit !found }'; then
+              echo "::error::$so 存在未按 16 KB 对齐的 LOAD 段"; bad=1
+            fi
+          done
+          exit $bad
+
+      - name: Gradle unit tests, lint, APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon \
+            '-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8' \
+            :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+
+      - name: Verify APK signature and alignment
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          bt="${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}"
+          ls -l "$apk"
+          sha256sum "$apk"
+          "$bt/apksigner" verify --verbose "$apk" | head -5
+          "$bt/zipalign" -c -P 16 -v 4 "$apk" | tail -2
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChaoxingStudio-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android/app/build/outputs/apk/debug/app-debug.apk
           fail_on_unmatched_files: true
