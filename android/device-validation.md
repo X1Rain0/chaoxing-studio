@@ -81,3 +81,13 @@
 | 2026-11-27 | Same device | Background FGS | PASS: after manually granting notification permission, `MonitorService` ran foreground with a persistent notification; Home/return kept scanning; Stop removed the service and notification; force-stop/reopen restored the active background intent. No new event notification was available to test; autoSign stayed off. |
 | 2026-11-27 | Same device | Per-activity photo picker (preview mode) | PASS: photo dialog opened with `--ei debug_sign_preview 1`; system Photo Picker listed the pushed test PNG; after selection the dialog rendered a local preview (`PNG · 3 KB · 仅在本次窗口暂存`) and the CTA stayed disabled (`仅预览，不提交`). App log had no upload/`pan-yz` request lines and no fatal exception. Test image and screenshots were deleted afterwards. |
 | 2026-11-27 | Same device | Gesture keyboard regression | PASS: typing `1357` in the gesture field kept the raw text `1357` (previously rewritten to `12573` by the IME cursor), auto-inserted midpoint 2, and reported `已连接 5 个点` with the matching canvas path. No submission performed. |
+
+### CI 构建记录
+
+| 日期 | Run | 提交 | 结果 / 证据 |
+|---|---|---|---|
+| 2026-11-27 | Actions run `45954690381` | `7034895` | PASS：`ubuntu-latest` + Temurin 17 + Go 1.26 + SDK 36 / Build Tools 36.0.0 / NDK 27.3.13750724；`go test ./internal/... ./mobilebridge/...` 全过（chaoxing 1.057s、mobilebridge 0.002s）；AAR 12,641,147 B；四个 ABI 的 `libgojni.so` `LOAD` 段全部 `0x4000` 对齐；Gradle 53 tasks、`BUILD SUCCESSFUL`、lint 执行完成；APK 77,155,180 B、SHA-256 `32b75bdec19163b964e520b97278403ee4232f9150a778bea8064cabad99aa08`、`apksigner` v2 true、`zipalign -c -P 16` 通过；artifact `ChaoxingStudio-android-debug` 43.56 MiB。Linux 工具链产出的 APK 与本地 Windows 构建哈希不同，比对以提交为准。 |
+| 2026-11-27 | Actions run `45954623576` | `ffd6dd4` | FAIL（已修）：`Go tests` 步跑 `go test ./...` 时连仓库根的 Wails main 包一起编译，Linux 上缺 gtk3/webkit2gtk 头文件；改为只测 `./internal/...` 与 `./mobilebridge/...`，桌面版交给 windows job。 |
+
+真实照片上传与真实签到提交仍未在 CI 或本地自动执行，由使用者本人在自己账号上验证。
+

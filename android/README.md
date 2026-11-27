@@ -40,6 +40,14 @@ adb install -r .\app\build\outputs\apk\debug\app-debug.apk
 
 Build the APK from a clean tree when reporting its size or hash. A stale `app/build/` can leave padding inside `app-debug.apk` — one earlier build measured 96.4 MiB while carrying the same 75.7 MiB of entries; `:app:clean :app:assembleDebug` restored the real size.
 
+## CI
+
+`.github/workflows/build.yml` runs an `android` job on GitHub-hosted `ubuntu-latest`: Temurin 17, Go 1.26, Android SDK Platform 36, Build Tools 36.0.0, NDK 27.3.13750724, then `go tool gomobile bind` with the same `-androidapi 21` and `-Wl,-z,max-page-size=16384` flags. The job verifies every `libgojni.so` `LOAD` segment is `0x4000`-aligned with `llvm-readelf`, runs `go test ./internal/... ./mobilebridge/...`, `:app:testDebugUnitTest :app:lintDebug :app:assembleDebug`, and re-checks the APK with `apksigner` and `zipalign -c -P 16`.
+
+It triggers on pushes to `main` that touch `android/**`, `mobilebridge/**`, `internal/**`, `go.mod`, `go.sum`, or the workflow itself, plus every `v*` tag and manual dispatch. The desktop job only builds on tags and manual dispatch. APKs are published as the `ChaoxingStudio-android-debug` artifact (zip, ~43 MiB); on a tag, both the Windows exe and the APK are attached to the same release.
+
+The root package is excluded from CI's Go tests on purpose: it is the Wails desktop entry point and needs cgo with gtk3/webkit2gtk, which only the Windows job builds. Because the Go toolchain and linker differ between Windows and the Linux runner, an APK built in CI will not hash-match a local Windows build of the same commit — compare the commit, not the hash.
+
 ## Device smoke test
 
 After starting one API 35/36 Android emulator or connecting one Android phone, run this from the repository root. Physical phones need USB debugging enabled and their RSA prompt accepted:
